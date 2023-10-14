@@ -6,14 +6,19 @@ using namespace std;
 int main() {
     setlocale(LC_CTYPE, "rus");
 
-    ifstream myPicture("Dsample.bmp", ifstream::binary);
-    if (!myPicture) {
+    const char* inputfile = "sample.bmp";
+    const char* outputfile_counterclockwise = "bmpRotate(counterclockwise).bmp";
+    const char* outputfile_clockwise = "bmpRotate(clockwise).bmp";
+    const char* outputfile_GaussianFilter = "bmp(GaussianFilter).bmp";
+
+    ifstream myPicture(inputfile, ifstream::binary);
+    if (!myPicture.is_open()) {
         cout << "File opening error. Try again or enter a different name.";
         myPicture.close();
         return 0;
     }
 
-    //read header
+    //reading header
     BITMAPFILEHEADER myHeader;
     myPicture.read(reinterpret_cast<char*>(&myHeader.bfType), sizeof(myHeader.bfType));
     myPicture.read(reinterpret_cast<char*>(&myHeader.bfSize), sizeof(myHeader.bfSize));
@@ -71,37 +76,41 @@ int main() {
         return 0;
     }
 
-    //calculating the width of the string, taking into account the alignment
+    //calculating the width, taking into account the alignment
     int bytesPerPixel = myInfo.biBitCount / 8;
-    int alignment = 4;                         // alignment
+    int alignment = 4;                                         // alignment
     int stride = (myInfo.biWidth * bytesPerPixel) + (alignment - 1);
     stride /= alignment;
-    stride *= alignment;  // width, multiple of 4
+    stride *= alignment;                       // width, multiple of 4
     int padding = stride - myInfo.biWidth * bytesPerPixel;
 
     //creating a buffer
     unsigned char* buffer = new unsigned char[stride * myInfo.biHeight];
-    //read to the buffe
+
+    cout << "The amount of memory allocated for image loading is " << stride * myInfo.biHeight << " bytes." << endl;
+
+    //reading to the buffer
     myPicture.read(reinterpret_cast<char*> (buffer), stride * myInfo.biHeight);
     myPicture.close();
 
 
-    // Создаем новый буфер для повернутого изображения
-    int newPadding = ((myInfo.biHeight * bytesPerPixel + 3) / 4) * 4 - myInfo.biHeight * bytesPerPixel;
-    int newStride = myInfo.biHeight * bytesPerPixel + newPadding;        // новая ширина кратная 4
+    // creating a new buffer for the rotated image
+    int newPadding = ((myInfo.biHeight * bytesPerPixel + (alignment - 1)) / alignment) * alignment - myInfo.biHeight * bytesPerPixel;
+    int newStride = myInfo.biHeight * bytesPerPixel + newPadding;                 // new width multiple of 4
     unsigned char* newBuffer = new unsigned char[myInfo.biWidth * newStride];
-    char null = buffer[0];                               // запоминаем чтобы заполнить нулевые байты в будущем))
-    myHeader.bfSize = 14 + myInfo.biSize + myInfo.biWidth * newStride;// считаем новый размер файла с повернутым изображением
+    char null = buffer[0];                                                        // memorizing the zero element
+    myHeader.bfSize = 14 + myInfo.biSize + myInfo.biWidth * newStride;            // counting the size of new file with the rotated image
 
+    // opening the file for the image rotated counterclockwise
     BITMAPFILEHEADER myNewHeader;
-    ofstream myNewPicture("bmpRotate(counterclockwise).bmp", ofstream::binary);
+    ofstream myNewPicture(outputfile_counterclockwise, ofstream::binary);
     myNewPicture.write(reinterpret_cast<char*>(&myHeader.bfType), sizeof(myHeader.bfType));
     myNewPicture.write(reinterpret_cast<char*>(&myHeader.bfSize), sizeof(myHeader.bfSize));
     myNewPicture.write(reinterpret_cast<char*>(&myHeader.bfReserved1), sizeof(myHeader.bfReserved1));
     myNewPicture.write(reinterpret_cast<char*>(&myHeader.bfReserved2), sizeof(myHeader.bfReserved2));
     myNewPicture.write(reinterpret_cast<char*>(&myHeader.bfOffBits), sizeof(myHeader.bfOffBits));
     myNewPicture.write(reinterpret_cast<char*>(&myInfo.biSize), sizeof(myInfo.biSize));
-    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biHeight), sizeof(myInfo.biHeight));    // поменяли местами высоту и ширину
+    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biHeight), sizeof(myInfo.biHeight));
     myNewPicture.write(reinterpret_cast<char*>(&myInfo.biWidth), sizeof(myInfo.biWidth));
     myNewPicture.write(reinterpret_cast<char*>(&myInfo.biPlanes), sizeof(myInfo.biPlanes));
     myNewPicture.write(reinterpret_cast<char*>(&myInfo.biBitCount), sizeof(myInfo.biBitCount));
@@ -130,33 +139,34 @@ int main() {
         }
     }
 
-    for (int i = 0; i < myInfo.biHeight; i++) {        //в пикселях 
-        for (int j = 0; j < myInfo.biWidth; j++) {     // в пикселях
+    // rotating pixels counterclockwise
+    for (int i = 0; i < myInfo.biHeight; i++) {
+        for (int j = 0; j < myInfo.biWidth; j++) {
 
-            int oldIndex = i * myInfo.biWidth + j;                    // индекс без учета трех байт в пикселе и без padding
-            int newIndex = (myInfo.biHeight - i - 1) + j * myInfo.biHeight;
+            int oldIndex = i * myInfo.biWidth + j;                                            // counting the buffer pixel index
+            int newIndex = (myInfo.biHeight - i - 1) + j * myInfo.biHeight;                   // counting the newBuffer pixel index
 
-            oldIndex = oldIndex * bytesPerPixel + i * padding;      // теперь старый индекс соответствует индексу старого массива
-            newIndex = newIndex * bytesPerPixel + (newIndex / myInfo.biHeight) * newPadding; // теперь новый индекс соответствует инд нового массива
+            oldIndex = oldIndex * bytesPerPixel + i * padding;                                // counting the buffer byte index
+            newIndex = newIndex * bytesPerPixel + (newIndex / myInfo.biHeight) * newPadding;  // counting the newBuffer byte index
 
             for (int k = 0; k < bytesPerPixel; k++) {
-                newBuffer[newIndex + k] = buffer[oldIndex + k];      //заполняем соответственно
+                newBuffer[newIndex + k] = buffer[oldIndex + k];                               // filling in accordingly
             }
         }
     }
 
-    myNewPicture.write(reinterpret_cast<char*> (newBuffer), newStride * myInfo.biWidth);
+    myNewPicture.write(reinterpret_cast<char*> (newBuffer), newStride * myInfo.biWidth);      // writing the newBuffer with rotated counterclockwise pixels
     myNewPicture.close();
 
-    // открываем файл для поворота по часовой стрелке
-    ofstream myNewPicture2("bmpRotate(clockwise).bmp", ofstream::binary);
+    // opening the file for the image rotated clockwise
+    ofstream myNewPicture2(outputfile_clockwise, ofstream::binary);
     myNewPicture2.write(reinterpret_cast<char*>(&myHeader.bfType), sizeof(myHeader.bfType));
     myNewPicture2.write(reinterpret_cast<char*>(&myHeader.bfSize), sizeof(myHeader.bfSize));
     myNewPicture2.write(reinterpret_cast<char*>(&myHeader.bfReserved1), sizeof(myHeader.bfReserved1));
     myNewPicture2.write(reinterpret_cast<char*>(&myHeader.bfReserved2), sizeof(myHeader.bfReserved2));
     myNewPicture2.write(reinterpret_cast<char*>(&myHeader.bfOffBits), sizeof(myHeader.bfOffBits));
     myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biSize), sizeof(myInfo.biSize));
-    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biHeight), sizeof(myInfo.biHeight));    // поменяли местами высоту и ширину
+    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biHeight), sizeof(myInfo.biHeight));
     myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biWidth), sizeof(myInfo.biWidth));
     myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biPlanes), sizeof(myInfo.biPlanes));
     myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biBitCount), sizeof(myInfo.biBitCount));
@@ -185,38 +195,40 @@ int main() {
         }
     }
 
+    // rotating pixels clockwise
     for (int i = 0; i < myInfo.biHeight; i++) {
         for (int j = 0; j < myInfo.biWidth; j++) {
 
-            int oldIndex = i * myInfo.biWidth + j;                    // индекс без учета трех байт в пикселе и без padding
-            int newIndex = (myInfo.biWidth - j - 1) * myInfo.biHeight + i;
+            int oldIndex = i * myInfo.biWidth + j;                                           // counting the buffer pixel index
+            int newIndex = (myInfo.biWidth - j - 1) * myInfo.biHeight + i;                   // counting the newBuffer pixel index
 
-            oldIndex = oldIndex * bytesPerPixel + i * padding;      // теперь старый индекс соответствует индексу старого массива
-            newIndex = newIndex * bytesPerPixel + (newIndex / myInfo.biHeight) * newPadding; // теперь новый индекс соответствует инд нового
+            oldIndex = oldIndex * bytesPerPixel + i * padding;                               // counting the buffer byte index
+            newIndex = newIndex * bytesPerPixel + (newIndex / myInfo.biHeight) * newPadding; // counting the newBuffer byte index
 
             for (int k = 0; k < bytesPerPixel; k++) {
-                newBuffer[newIndex + k] = buffer[oldIndex + k];      //заполняем соответственно
+                newBuffer[newIndex + k] = buffer[oldIndex + k];                              // filling in accordingly
             }
-            if ((myInfo.biHeight - i - 1) * bytesPerPixel + 3 == newStride - 3) {    // а эти индексы заполняем нулями
+            if ((myInfo.biHeight - i - 1) * bytesPerPixel + 3 == newStride - 3) {
                 for (int k = 0; k < 3; k++) {
-                    newBuffer[newIndex + bytesPerPixel + k] = null;
+                    newBuffer[newIndex + bytesPerPixel + k] = null;                          // filling in with zeros
                 }
             }
         }
     }
 
-    delete[] buffer;
-    myNewPicture2.write(reinterpret_cast<char*> (newBuffer), newStride * myInfo.biWidth);
+    delete[] buffer;    // deleting buffer
+    myNewPicture2.write(reinterpret_cast<char*> (newBuffer), newStride * myInfo.biWidth);    // writing the newBuffer with rotated clockwise pixels
     myNewPicture2.close();
 
-    ofstream myNewPicture3("bmpRotateV2(GaussianFilter).bmp", ofstream::binary);
+    // opening the file for the Gaussian filter
+    ofstream myNewPicture3(outputfile_GaussianFilter, ofstream::binary);
     myNewPicture3.write(reinterpret_cast<char*>(&myHeader.bfType), sizeof(myHeader.bfType));
     myNewPicture3.write(reinterpret_cast<char*>(&myHeader.bfSize), sizeof(myHeader.bfSize));
     myNewPicture3.write(reinterpret_cast<char*>(&myHeader.bfReserved1), sizeof(myHeader.bfReserved1));
     myNewPicture3.write(reinterpret_cast<char*>(&myHeader.bfReserved2), sizeof(myHeader.bfReserved2));
     myNewPicture3.write(reinterpret_cast<char*>(&myHeader.bfOffBits), sizeof(myHeader.bfOffBits));
     myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biSize), sizeof(myInfo.biSize));
-    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biHeight), sizeof(myInfo.biHeight));    // поменяли местами высоту и ширину
+    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biHeight), sizeof(myInfo.biHeight));
     myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biWidth), sizeof(myInfo.biWidth));
     myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biPlanes), sizeof(myInfo.biPlanes));
     myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biBitCount), sizeof(myInfo.biBitCount));
@@ -245,15 +257,15 @@ int main() {
         }
     }
 
-
-    //фильтр Гаусса
-    // создаем ядро
-    const int radius = 5;                  
+    // Gaussian filter
+    // creating kernel
+    const int radius = 5;
     double sigma = 1.92;
-    const int kernelSide = radius * 2 + 1; // сторона ядра
+    const int kernelSide = radius * 2 + 1;       // side of the kernel
     double kernel[kernelSide * kernelSide];
     double sum = 0;
 
+    // counting the coefficients
     for (int i = -radius; i <= radius; i++) {
         for (int j = -radius; j <= radius; j++) {
 
@@ -262,26 +274,26 @@ int main() {
         }
     }
 
-    // нормализуем коэффициенты
+    // normalizing the coefficients
     for (int i = 0; i < kernelSide * kernelSide; i++) {
         kernel[i] /= sum;
     }
 
-    // создаем новый буфер для фильтра гаусса
+    // creating a new buffer for the Gaussian filter
     unsigned char* newBufferGauss = new unsigned char[myInfo.biWidth * newStride];
 
+    // applying a filter to an image
+    for (int i = 0; i < myInfo.biWidth; i++) {                // row number
+        for (int j = 0; j < myInfo.biHeight; j++) {           // column number
 
-
-    // создали ядро, теперь 
-    for (int i = 0; i < myInfo.biWidth; i++) {                // номер строки (т.к. изображение повернуто)
-        for (int j = 0; j < myInfo.biHeight; j++) {           // номер столбца изображения
-            double byte1 = 0;
+            double byte1 = 0;                                 // taking into account 3 bytes per pixel
             double byte2 = 0;
             double byte3 = 0;
 
             for (int x = -radius; x <= radius; x++) {
                 for (int y = -radius; y <= radius; y++) {
 
+                    // counting indexes considering the edges
                     int ix = i + x, jy = j + y;
                     if (i + x < 0) {
                         ix = -(i + x);
@@ -297,16 +309,17 @@ int main() {
                     }
 
                     int kernelIndex = (x + radius) * kernelSide + (y + radius);
-                    int newBufferIndex = bytesPerPixel * ((ix)*myInfo.biHeight + jy) + (ix)*newPadding;
+                    int newBufferIndex = bytesPerPixel * (ix * myInfo.biHeight + jy) + ix * newPadding;
 
                     if (newBufferIndex >= 0 && newBufferIndex < myInfo.biWidth * newStride) {
-                        byte1 += kernel[kernelIndex] * newBuffer[newBufferIndex];
+
+                        byte1 += kernel[kernelIndex] * newBuffer[newBufferIndex];               // taking into account 3 bytes per pixel
                         byte2 += kernel[kernelIndex] * newBuffer[newBufferIndex + 1];
                         byte3 += kernel[kernelIndex] * newBuffer[newBufferIndex + 2];
                     }
                 }
             }
-            newBufferGauss[bytesPerPixel * (i * myInfo.biHeight + j) + i * newPadding] = (unsigned char)byte1;
+            newBufferGauss[bytesPerPixel * (i * myInfo.biHeight + j) + i * newPadding] = (unsigned char)byte1;      // taking into account 3 bytes per pixel
             newBufferGauss[bytesPerPixel * (i * myInfo.biHeight + j) + i * newPadding + 1] = (unsigned char)byte2;
             newBufferGauss[bytesPerPixel * (i * myInfo.biHeight + j) + i * newPadding + 2] = (unsigned char)byte3;
         }
@@ -315,7 +328,7 @@ int main() {
     myNewPicture3.write(reinterpret_cast<char*> (newBufferGauss), newStride * myInfo.biWidth);
     myNewPicture3.close();
 
-    delete[] newBuffer;
+    delete[] newBuffer;       // deleting buffers
     delete[] newBufferGauss;
 
     return 0;
