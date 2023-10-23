@@ -1,8 +1,26 @@
 ﻿#include <iostream>
 #include <fstream>
+/* Загловок не должен называться просто "заголовок" */
 #include "Header.h"
+/* Так делать не стоит из-за конфликтов имен. Пусть у тебя есть функция с именем как у функции, 
+ * которая орпеделена в стд. Тогда при вызове узнать, какая из эти двух функций на самом деле 
+ * вызывается будет сложно. А вот если бы функцию из стд ты вызывал std::func(), то такой проблемы
+ * возникнуть не может */
 using namespace std;
-
+/* Следует разбивать программу на файлы. Во первых, просто ради
+ * организации кода. Во вторых, чтобы была возможность проводить
+ * раздельную компиляцию. Стоит помещать каждый класс\структуру 
+ * в отдельный .h файл, а определения этих методов в .cpp. Тогда
+ * при изменении реализации какой-то функции придется перекомпили-
+ * ровать только этот .cpp файл. Если определение было в заголовке,
+ * то придется перекомпилировать все файлы, в которые включен заголо-
+ * вок (в крупном проекте это может сократить время компиляции на
+ * несколько часов) */
+/* Программа хорошо ложится на использование класса картинки. То есть
+ * у нас мог бы быть класс BMP, который содержит все эти методы,
+ * в приватных полях хранит указатель на пиксели и BMPHeader. При 
+ * изменении картинки создает новый экземпляр картинки. Тогда мы бы 
+ * имели более безопасную программу за счет инкапсуляции. */
 int main() {
     setlocale(LC_CTYPE, "rus");
 
@@ -17,7 +35,7 @@ int main() {
         myPicture.close();
         return 0;
     }
-
+    /* Ну а вот 100 картнок скажу прочитать, 100 раз скопируешь? */
     //reading header
     BITMAPFILEHEADER myHeader;
     myPicture.read(reinterpret_cast<char*>(&myHeader.bfType), sizeof(myHeader.bfType));
@@ -27,6 +45,7 @@ int main() {
     myPicture.read(reinterpret_cast<char*>(&myHeader.bfOffBits), sizeof(myHeader.bfOffBits));
     //checking the conditions associated with the header
     if (myHeader.bfType != 0x4d42) {
+        /* Ошибки выводятся в cerr */
         cout << "This file is not a BMP file." << endl;
         myPicture.close();
         return 0;
@@ -34,6 +53,8 @@ int main() {
 
     //reading the information
     BITMAPINFOHEADER myInfo;
+    /* Красть код у одногруппников надо осторожно, особенно такой опознаваемый. 
+     * Прошу то же, что и там. Сделай это одним чтением. */
     myPicture.read(reinterpret_cast<char*>(&myInfo.biSize), sizeof(myInfo.biSize));
     myPicture.read(reinterpret_cast<char*>(&myInfo.biWidth), sizeof(myInfo.biWidth));
     myPicture.read(reinterpret_cast<char*>(&myInfo.biHeight), sizeof(myInfo.biHeight));
@@ -45,6 +66,7 @@ int main() {
     myPicture.read(reinterpret_cast<char*>(&myInfo.biYPelsPerMeter), sizeof(myInfo.biYPelsPerMeter));
     myPicture.read(reinterpret_cast<char*>(&myInfo.biClrUsed), sizeof(myInfo.biClrUsed));
     myPicture.read(reinterpret_cast<char*>(&myInfo.biClrImportant), sizeof(myInfo.biClrImportant));
+    /* Тебе эти данные не нужны в принципе так-то. Их можно в одну переменную читать */
     if (myInfo.biSize == 108 || myInfo.biSize == 124)
     {
         myPicture.read(reinterpret_cast<char*>(&myInfo.biRedMask), sizeof(myInfo.biRedMask));
@@ -70,12 +92,14 @@ int main() {
         myInfo.biPlanes != 1 ||
         myInfo.biCompression != 0 ||  //only uncompressed images
         myInfo.biBitCount != 24)
-    {
+    { /* А где else вообще? */
         cout << "Unsupported BMP format." << endl;
         myPicture.close();
         return 0;
     }
-
+    /* Формулы какие-то очень неинтуитивные. Если хочешь считать паддинг
+     * попробуй воспользоваться взятием остатка. Потому что манипуляции
+     * с делением и умножением на одно и то же выглядят как шаманство */
     //calculating the width, taking into account the alignment
     int bytesPerPixel = myInfo.biBitCount / 8;
     int alignment = 4;                                         // alignment
@@ -103,6 +127,7 @@ int main() {
 
     // opening the file for the image rotated counterclockwise
     BITMAPFILEHEADER myNewHeader;
+    /* Просто жесть... */
     ofstream myNewPicture(outputfile_counterclockwise, ofstream::binary);
     myNewPicture.write(reinterpret_cast<char*>(&myHeader.bfType), sizeof(myHeader.bfType));
     myNewPicture.write(reinterpret_cast<char*>(&myHeader.bfSize), sizeof(myHeader.bfSize));
