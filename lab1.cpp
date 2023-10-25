@@ -1,263 +1,182 @@
 ﻿#include <iostream>
 #include <fstream>
 #include "Header.h"
-using namespace std;
 
 int main() {
     setlocale(LC_CTYPE, "rus");
 
     const char* inputfile = "sample.bmp";
-    const char* outputfile_counterclockwise = "bmpRotate(counterclockwise).bmp";
-    const char* outputfile_clockwise = "bmpRotate(clockwise).bmp";
-    const char* outputfile_GaussianFilter = "bmp(GaussianFilter).bmp";
+    const char* outputfile_counterclockwise = "RotatedCounterclockwise.bmp";
+    const char* outputfile_clockwise = "RotatedClockwise.bmp";
+    const char* outputfile_GaussianFilter = "GaussianFilter.bmp";
 
-    ifstream myPicture(inputfile, ifstream::binary);
-    if (!myPicture.is_open()) {
-        cout << "File opening error. Try again or enter a different name.";
-        myPicture.close();
+    std::ifstream Picture(inputfile, std::ifstream::binary);
+    if (!Picture.is_open()) {
+        std::cerr << "File opening error. Try again or enter a different name." << std::endl;
+        Picture.close();
         return 0;
     }
 
     //reading header
-    BITMAPFILEHEADER myHeader;
-    myPicture.read(reinterpret_cast<char*>(&myHeader.bfType), sizeof(myHeader.bfType));
-    myPicture.read(reinterpret_cast<char*>(&myHeader.bfSize), sizeof(myHeader.bfSize));
-    myPicture.read(reinterpret_cast<char*>(&myHeader.bfReserved1), sizeof(myHeader.bfReserved1));
-    myPicture.read(reinterpret_cast<char*>(&myHeader.bfReserved2), sizeof(myHeader.bfReserved2));
-    myPicture.read(reinterpret_cast<char*>(&myHeader.bfOffBits), sizeof(myHeader.bfOffBits));
+    BITMAPFILEHEADER Header{};
+
+    Picture.read(reinterpret_cast<char*>(&Header), sizeof(BITMAPFILEHEADER));
+
     //checking the conditions associated with the header
-    if (myHeader.bfType != 0x4d42) {
-        cout << "This file is not a BMP file." << endl;
-        myPicture.close();
+    if (Header.bfType != 0x4d42) {
+        std::cerr << "This file is not a BMP file." << std::endl;
+        Picture.close();
         return 0;
     }
 
     //reading the information
-    BITMAPINFOHEADER myInfo;
-    myPicture.read(reinterpret_cast<char*>(&myInfo.biSize), sizeof(myInfo.biSize));
-    myPicture.read(reinterpret_cast<char*>(&myInfo.biWidth), sizeof(myInfo.biWidth));
-    myPicture.read(reinterpret_cast<char*>(&myInfo.biHeight), sizeof(myInfo.biHeight));
-    myPicture.read(reinterpret_cast<char*>(&myInfo.biPlanes), sizeof(myInfo.biPlanes));
-    myPicture.read(reinterpret_cast<char*>(&myInfo.biBitCount), sizeof(myInfo.biBitCount));
-    myPicture.read(reinterpret_cast<char*>(&myInfo.biCompression), sizeof(myInfo.biCompression));
-    myPicture.read(reinterpret_cast<char*>(&myInfo.biSizeImage), sizeof(myInfo.biSizeImage));
-    myPicture.read(reinterpret_cast<char*>(&myInfo.biXPelsPerMeter), sizeof(myInfo.biXPelsPerMeter));
-    myPicture.read(reinterpret_cast<char*>(&myInfo.biYPelsPerMeter), sizeof(myInfo.biYPelsPerMeter));
-    myPicture.read(reinterpret_cast<char*>(&myInfo.biClrUsed), sizeof(myInfo.biClrUsed));
-    myPicture.read(reinterpret_cast<char*>(&myInfo.biClrImportant), sizeof(myInfo.biClrImportant));
-    if (myInfo.biSize == 108 || myInfo.biSize == 124)
+    BITMAPINFOHEADER Info{};
+    PALETTE1 Palette1{};
+    PALETTE2 Palette2{};
+
+    Picture.read(reinterpret_cast<char*>(&Info), sizeof(BITMAPINFOHEADER));
+
+    if (Info.biSize == 108 || Info.biSize == 124)
     {
-        myPicture.read(reinterpret_cast<char*>(&myInfo.biRedMask), sizeof(myInfo.biRedMask));
-        myPicture.read(reinterpret_cast<char*>(&myInfo.biGreenMask), sizeof(myInfo.biGreenMask));
-        myPicture.read(reinterpret_cast<char*>(&myInfo.biBlueMask), sizeof(myInfo.biBlueMask));
-        myPicture.read(reinterpret_cast<char*>(&myInfo.biAlphaMask), sizeof(myInfo.biAlphaMask));
-        myPicture.read(reinterpret_cast<char*>(&myInfo.biCSType), sizeof(myInfo.biCSType));
-        myPicture.read(reinterpret_cast<char*>(&myInfo.biEndpoints), sizeof(myInfo.biEndpoints));
-        myPicture.read(reinterpret_cast<char*>(&myInfo.biGammaRed), sizeof(myInfo.biGammaRed));
-        myPicture.read(reinterpret_cast<char*>(&myInfo.biGammaGreen), sizeof(myInfo.biGammaGreen));
-        myPicture.read(reinterpret_cast<char*>(&myInfo.biGammaBlue), sizeof(myInfo.biGammaBlue));
-        if (myInfo.biSize == 124) {
-            myPicture.read(reinterpret_cast<char*>(&myInfo.biIntent), sizeof(myInfo.biIntent));
-            myPicture.read(reinterpret_cast<char*>(&myInfo.biProfileData), sizeof(myInfo.biProfileData));
-            myPicture.read(reinterpret_cast<char*>(&myInfo.biProfileSize), sizeof(myInfo.biProfileSize));
-            myPicture.read(reinterpret_cast<char*>(&myInfo.biReserved), sizeof(myInfo.biReserved));
+        Picture.read(reinterpret_cast<char*>(&Palette1), sizeof(PALETTE1));
+        if (Info.biSize == 124)
+        {
+            Picture.read(reinterpret_cast<char*>(&Palette2), sizeof(PALETTE2));
         }
     }
+
     //checking the conditions
-    if ((myInfo.biSize != 40 && myInfo.biSize != 108 && myInfo.biSize != 124) ||
-        myHeader.bfReserved1 != 0 ||
-        myHeader.bfReserved2 != 0 ||
-        myInfo.biPlanes != 1 ||
-        myInfo.biCompression != 0 ||  //only uncompressed images
-        myInfo.biBitCount != 24)
+    if ((Info.biSize != 40 && Info.biSize != 108 && Info.biSize != 124) ||
+        Header.bfReserved1 != 0 ||
+        Header.bfReserved2 != 0 ||
+        Info.biPlanes != 1 ||
+        Info.biCompression != 0 ||  //only uncompressed images
+        Info.biBitCount != 24)
     {
-        cout << "Unsupported BMP format." << endl;
-        myPicture.close();
+        std::cerr << "Unsupported BMP format." << std::endl;
+        Picture.close();
         return 0;
     }
 
+
     //calculating the width, taking into account the alignment
-    int bytesPerPixel = myInfo.biBitCount / 8;
+    int Width = Info.biWidth;
+    int Height = Info.biHeight;
+    int bytesPerPixel = Info.biBitCount / 8;
     int alignment = 4;                                         // alignment
-    int stride = (myInfo.biWidth * bytesPerPixel) + (alignment - 1);
-    stride /= alignment;
-    stride *= alignment;                       // width, multiple of 4
-    int padding = stride - myInfo.biWidth * bytesPerPixel;
+    int Stride = ((Width * bytesPerPixel + (alignment - 1)) / alignment) * alignment;          // width, multiple of 4
+    int Padding = Stride - Width * bytesPerPixel;
 
     //creating a buffer
-    unsigned char* buffer = new unsigned char[stride * myInfo.biHeight];
+    int bufferSize = Stride * Height;
+    unsigned char* buffer = new unsigned char[bufferSize];
 
-    cout << "The amount of memory allocated for image loading is " << stride * myInfo.biHeight << " bytes." << endl;
+    std::cout << "The amount of memory allocated for image loading is " << bufferSize << " bytes." << std::endl;
 
     //reading to the buffer
-    myPicture.read(reinterpret_cast<char*> (buffer), stride * myInfo.biHeight);
-    myPicture.close();
+    Picture.read(reinterpret_cast<char*> (buffer), bufferSize);
+    Picture.close();
 
+    // calculating a new width, taking into account the alignment
+    int newStride = ((Height * bytesPerPixel + (alignment - 1)) / alignment) * alignment;               // new width multiple of 4
+    int newPadding = newStride - Height * bytesPerPixel;
 
-    // creating a new buffer for the rotated image
-    int newPadding = ((myInfo.biHeight * bytesPerPixel + (alignment - 1)) / alignment) * alignment - myInfo.biHeight * bytesPerPixel;
-    int newStride = myInfo.biHeight * bytesPerPixel + newPadding;                 // new width multiple of 4
-    unsigned char* newBuffer = new unsigned char[myInfo.biWidth * newStride];
-    char null = buffer[0];                                                        // memorizing the zero element
-    myHeader.bfSize = 14 + myInfo.biSize + myInfo.biWidth * newStride;            // counting the size of new file with the rotated image
+    //creating a new buffer
+    int newBufferSize = Width * newStride;
+    unsigned char* newBuffer = new unsigned char[newBufferSize];
+
+    Header.bfSize = 14 + Info.biSize + Width * newStride;                // counting the size of new file with the rotated image
+    Info.biHeight = Width;                                               // changing height and width
+    Info.biWidth = Height;
+
 
     // opening the file for the image rotated counterclockwise
-    BITMAPFILEHEADER myNewHeader;
-    ofstream myNewPicture(outputfile_counterclockwise, ofstream::binary);
-    myNewPicture.write(reinterpret_cast<char*>(&myHeader.bfType), sizeof(myHeader.bfType));
-    myNewPicture.write(reinterpret_cast<char*>(&myHeader.bfSize), sizeof(myHeader.bfSize));
-    myNewPicture.write(reinterpret_cast<char*>(&myHeader.bfReserved1), sizeof(myHeader.bfReserved1));
-    myNewPicture.write(reinterpret_cast<char*>(&myHeader.bfReserved2), sizeof(myHeader.bfReserved2));
-    myNewPicture.write(reinterpret_cast<char*>(&myHeader.bfOffBits), sizeof(myHeader.bfOffBits));
-    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biSize), sizeof(myInfo.biSize));
-    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biHeight), sizeof(myInfo.biHeight));
-    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biWidth), sizeof(myInfo.biWidth));
-    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biPlanes), sizeof(myInfo.biPlanes));
-    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biBitCount), sizeof(myInfo.biBitCount));
-    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biCompression), sizeof(myInfo.biCompression));
-    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biSizeImage), sizeof(myInfo.biSizeImage));
-    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biXPelsPerMeter), sizeof(myInfo.biXPelsPerMeter));
-    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biYPelsPerMeter), sizeof(myInfo.biYPelsPerMeter));
-    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biClrUsed), sizeof(myInfo.biClrUsed));
-    myNewPicture.write(reinterpret_cast<char*>(&myInfo.biClrImportant), sizeof(myInfo.biClrImportant));
-    if (myInfo.biSize == 108 || myInfo.biSize == 124)
-    {
-        myNewPicture.write(reinterpret_cast<char*>(&myInfo.biRedMask), sizeof(myInfo.biRedMask));
-        myNewPicture.write(reinterpret_cast<char*>(&myInfo.biGreenMask), sizeof(myInfo.biGreenMask));
-        myNewPicture.write(reinterpret_cast<char*>(&myInfo.biBlueMask), sizeof(myInfo.biBlueMask));
-        myNewPicture.write(reinterpret_cast<char*>(&myInfo.biAlphaMask), sizeof(myInfo.biAlphaMask));
-        myNewPicture.write(reinterpret_cast<char*>(&myInfo.biCSType), sizeof(myInfo.biCSType));
-        myNewPicture.write(reinterpret_cast<char*>(&myInfo.biEndpoints), sizeof(myInfo.biEndpoints));
-        myNewPicture.write(reinterpret_cast<char*>(&myInfo.biGammaRed), sizeof(myInfo.biGammaRed));
-        myNewPicture.write(reinterpret_cast<char*>(&myInfo.biGammaGreen), sizeof(myInfo.biGammaGreen));
-        myNewPicture.write(reinterpret_cast<char*>(&myInfo.biGammaBlue), sizeof(myInfo.biGammaBlue));
-        if (myInfo.biSize == 124) {
-            myNewPicture.write(reinterpret_cast<char*>(&myInfo.biIntent), sizeof(myInfo.biIntent));
-            myNewPicture.write(reinterpret_cast<char*>(&myInfo.biProfileData), sizeof(myInfo.biProfileData));
-            myNewPicture.write(reinterpret_cast<char*>(&myInfo.biProfileSize), sizeof(myInfo.biProfileSize));
-            myNewPicture.write(reinterpret_cast<char*>(&myInfo.biReserved), sizeof(myInfo.biReserved));
+    std::ofstream NewPicture(outputfile_counterclockwise, std::ofstream::binary);
+
+    NewPicture.write(reinterpret_cast<char*>(&Header), sizeof(BITMAPFILEHEADER));
+    NewPicture.write(reinterpret_cast<char*>(&Info), sizeof(BITMAPINFOHEADER));
+
+    if (Info.biSize == 108 || Info.biSize == 124) {
+        NewPicture.write(reinterpret_cast<char*>(&Palette1), sizeof(PALETTE1));
+
+        if (Info.biSize == 124) {
+            NewPicture.write(reinterpret_cast<char*>(&Palette2), sizeof(PALETTE2));
+
         }
     }
 
     // rotating pixels counterclockwise
-    for (int i = 0; i < myInfo.biHeight; i++) {
-        for (int j = 0; j < myInfo.biWidth; j++) {
+    for (int i = 0; i < Height; i++) {
+        for (int j = 0; j < Width; j++) {
 
-            int oldIndex = i * myInfo.biWidth + j;                                            // counting the buffer pixel index
-            int newIndex = (myInfo.biHeight - i - 1) + j * myInfo.biHeight;                   // counting the newBuffer pixel index
+            int oldIndex = i * Width + j;                                            // counting the buffer pixel index
+            int newIndex = (Height - i - 1) + j * Height;                            // counting the newBuffer pixel index
 
-            oldIndex = oldIndex * bytesPerPixel + i * padding;                                // counting the buffer byte index
-            newIndex = newIndex * bytesPerPixel + (newIndex / myInfo.biHeight) * newPadding;  // counting the newBuffer byte index
+            oldIndex = oldIndex * bytesPerPixel + i * Padding;                       // counting the buffer byte index
+            newIndex = newIndex * bytesPerPixel + (newIndex / Height) * newPadding;  // counting the newBuffer byte index
 
             for (int k = 0; k < bytesPerPixel; k++) {
-                newBuffer[newIndex + k] = buffer[oldIndex + k];                               // filling in accordingly
+                newBuffer[newIndex + k] = buffer[oldIndex + k];                      // filling in accordingly
             }
         }
     }
 
-    myNewPicture.write(reinterpret_cast<char*> (newBuffer), newStride * myInfo.biWidth);      // writing the newBuffer with rotated counterclockwise pixels
-    myNewPicture.close();
+    NewPicture.write(reinterpret_cast<char*> (newBuffer), newBufferSize);     // writing the newBuffer with rotated counterclockwise pixels
+    NewPicture.close();
+
 
     // opening the file for the image rotated clockwise
-    ofstream myNewPicture2(outputfile_clockwise, ofstream::binary);
-    myNewPicture2.write(reinterpret_cast<char*>(&myHeader.bfType), sizeof(myHeader.bfType));
-    myNewPicture2.write(reinterpret_cast<char*>(&myHeader.bfSize), sizeof(myHeader.bfSize));
-    myNewPicture2.write(reinterpret_cast<char*>(&myHeader.bfReserved1), sizeof(myHeader.bfReserved1));
-    myNewPicture2.write(reinterpret_cast<char*>(&myHeader.bfReserved2), sizeof(myHeader.bfReserved2));
-    myNewPicture2.write(reinterpret_cast<char*>(&myHeader.bfOffBits), sizeof(myHeader.bfOffBits));
-    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biSize), sizeof(myInfo.biSize));
-    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biHeight), sizeof(myInfo.biHeight));
-    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biWidth), sizeof(myInfo.biWidth));
-    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biPlanes), sizeof(myInfo.biPlanes));
-    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biBitCount), sizeof(myInfo.biBitCount));
-    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biCompression), sizeof(myInfo.biCompression));
-    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biSizeImage), sizeof(myInfo.biSizeImage));
-    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biXPelsPerMeter), sizeof(myInfo.biXPelsPerMeter));
-    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biYPelsPerMeter), sizeof(myInfo.biYPelsPerMeter));
-    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biClrUsed), sizeof(myInfo.biClrUsed));
-    myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biClrImportant), sizeof(myInfo.biClrImportant));
-    if (myInfo.biSize == 108 || myInfo.biSize == 124)
-    {
-        myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biRedMask), sizeof(myInfo.biRedMask));
-        myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biGreenMask), sizeof(myInfo.biGreenMask));
-        myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biBlueMask), sizeof(myInfo.biBlueMask));
-        myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biAlphaMask), sizeof(myInfo.biAlphaMask));
-        myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biCSType), sizeof(myInfo.biCSType));
-        myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biEndpoints), sizeof(myInfo.biEndpoints));
-        myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biGammaRed), sizeof(myInfo.biGammaRed));
-        myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biGammaGreen), sizeof(myInfo.biGammaGreen));
-        myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biGammaBlue), sizeof(myInfo.biGammaBlue));
-        if (myInfo.biSize == 124) {
-            myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biIntent), sizeof(myInfo.biIntent));
-            myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biProfileData), sizeof(myInfo.biProfileData));
-            myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biProfileSize), sizeof(myInfo.biProfileSize));
-            myNewPicture2.write(reinterpret_cast<char*>(&myInfo.biReserved), sizeof(myInfo.biReserved));
+    std::ofstream NewPicture2(outputfile_clockwise, std::ofstream::binary);
+
+    NewPicture2.write(reinterpret_cast<char*>(&Header), sizeof(BITMAPFILEHEADER));
+    NewPicture2.write(reinterpret_cast<char*>(&Info), sizeof(BITMAPINFOHEADER));
+
+    if (Info.biSize == 108 || Info.biSize == 124) {
+        NewPicture2.write(reinterpret_cast<char*>(&Palette1), sizeof(PALETTE1));
+
+        if (Info.biSize == 124) {
+            NewPicture2.write(reinterpret_cast<char*>(&Palette2), sizeof(PALETTE2));
+
         }
     }
 
     // rotating pixels clockwise
-    for (int i = 0; i < myInfo.biHeight; i++) {
-        for (int j = 0; j < myInfo.biWidth; j++) {
+    for (int i = 0; i < Height; i++) {
+        for (int j = 0; j < Width; j++) {
 
-            int oldIndex = i * myInfo.biWidth + j;                                           // counting the buffer pixel index
-            int newIndex = (myInfo.biWidth - j - 1) * myInfo.biHeight + i;                   // counting the newBuffer pixel index
+            int oldIndex = i * Width + j;                                            // counting the buffer pixel index
+            int newIndex = (Width - j - 1) * Height + i;                             // counting the newBuffer pixel index
 
-            oldIndex = oldIndex * bytesPerPixel + i * padding;                               // counting the buffer byte index
-            newIndex = newIndex * bytesPerPixel + (newIndex / myInfo.biHeight) * newPadding; // counting the newBuffer byte index
+            oldIndex = oldIndex * bytesPerPixel + i * Padding;                       // counting the buffer byte index
+            newIndex = newIndex * bytesPerPixel + (newIndex / Height) * newPadding;  // counting the newBuffer byte index
 
             for (int k = 0; k < bytesPerPixel; k++) {
-                newBuffer[newIndex + k] = buffer[oldIndex + k];                              // filling in accordingly
-            }
-            if ((myInfo.biHeight - i - 1) * bytesPerPixel + 3 == newStride - 3) {
-                for (int k = 0; k < 3; k++) {
-                    newBuffer[newIndex + bytesPerPixel + k] = null;                          // filling in with zeros
-                }
+                newBuffer[newIndex + k] = buffer[oldIndex + k];                      // filling in accordingly
             }
         }
     }
 
     delete[] buffer;    // deleting buffer
-    myNewPicture2.write(reinterpret_cast<char*> (newBuffer), newStride * myInfo.biWidth);    // writing the newBuffer with rotated clockwise pixels
-    myNewPicture2.close();
+    NewPicture2.write(reinterpret_cast<char*> (newBuffer), newBufferSize);      // writing the newBuffer with rotated clockwise pixels
+    NewPicture2.close();
 
+
+    // Gaussian filter
     // opening the file for the Gaussian filter
-    ofstream myNewPicture3(outputfile_GaussianFilter, ofstream::binary);
-    myNewPicture3.write(reinterpret_cast<char*>(&myHeader.bfType), sizeof(myHeader.bfType));
-    myNewPicture3.write(reinterpret_cast<char*>(&myHeader.bfSize), sizeof(myHeader.bfSize));
-    myNewPicture3.write(reinterpret_cast<char*>(&myHeader.bfReserved1), sizeof(myHeader.bfReserved1));
-    myNewPicture3.write(reinterpret_cast<char*>(&myHeader.bfReserved2), sizeof(myHeader.bfReserved2));
-    myNewPicture3.write(reinterpret_cast<char*>(&myHeader.bfOffBits), sizeof(myHeader.bfOffBits));
-    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biSize), sizeof(myInfo.biSize));
-    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biHeight), sizeof(myInfo.biHeight));
-    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biWidth), sizeof(myInfo.biWidth));
-    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biPlanes), sizeof(myInfo.biPlanes));
-    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biBitCount), sizeof(myInfo.biBitCount));
-    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biCompression), sizeof(myInfo.biCompression));
-    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biSizeImage), sizeof(myInfo.biSizeImage));
-    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biXPelsPerMeter), sizeof(myInfo.biXPelsPerMeter));
-    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biYPelsPerMeter), sizeof(myInfo.biYPelsPerMeter));
-    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biClrUsed), sizeof(myInfo.biClrUsed));
-    myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biClrImportant), sizeof(myInfo.biClrImportant));
-    if (myInfo.biSize == 108 || myInfo.biSize == 124)
-    {
-        myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biRedMask), sizeof(myInfo.biRedMask));
-        myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biGreenMask), sizeof(myInfo.biGreenMask));
-        myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biBlueMask), sizeof(myInfo.biBlueMask));
-        myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biAlphaMask), sizeof(myInfo.biAlphaMask));
-        myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biCSType), sizeof(myInfo.biCSType));
-        myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biEndpoints), sizeof(myInfo.biEndpoints));
-        myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biGammaRed), sizeof(myInfo.biGammaRed));
-        myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biGammaGreen), sizeof(myInfo.biGammaGreen));
-        myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biGammaBlue), sizeof(myInfo.biGammaBlue));
-        if (myInfo.biSize == 124) {
-            myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biIntent), sizeof(myInfo.biIntent));
-            myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biProfileData), sizeof(myInfo.biProfileData));
-            myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biProfileSize), sizeof(myInfo.biProfileSize));
-            myNewPicture3.write(reinterpret_cast<char*>(&myInfo.biReserved), sizeof(myInfo.biReserved));
+    std::ofstream NewPicture3(outputfile_GaussianFilter, std::ofstream::binary);
+
+    NewPicture3.write(reinterpret_cast<char*>(&Header), sizeof(BITMAPFILEHEADER));
+    NewPicture3.write(reinterpret_cast<char*>(&Info), sizeof(BITMAPINFOHEADER));
+
+    if (Info.biSize == 108 || Info.biSize == 124) {
+        NewPicture3.write(reinterpret_cast<char*>(&Palette1), sizeof(PALETTE1));
+
+        if (Info.biSize == 124) {
+            NewPicture3.write(reinterpret_cast<char*>(&Palette2), sizeof(PALETTE2));
+
         }
     }
 
-    // Gaussian filter
     // creating kernel
     const int radius = 5;
     double sigma = 1.92;
@@ -280,13 +199,13 @@ int main() {
     }
 
     // creating a new buffer for the Gaussian filter
-    unsigned char* newBufferGauss = new unsigned char[myInfo.biWidth * newStride];
+    unsigned char* newBufferGauss = new unsigned char[newBufferSize];
 
     // applying a filter to an image
-    for (int i = 0; i < myInfo.biWidth; i++) {                // row number
-        for (int j = 0; j < myInfo.biHeight; j++) {           // column number
+    for (int i = 0; i < Width; i++) {                // row number
+        for (int j = 0; j < Height; j++) {           // column number
 
-            double byte1 = 0;                                 // taking into account 3 bytes per pixel
+            double byte1 = 0;                        // taking into account 3 bytes per pixel
             double byte2 = 0;
             double byte3 = 0;
 
@@ -298,35 +217,35 @@ int main() {
                     if (i + x < 0) {
                         ix = -(i + x);
                     }
-                    if (i + x > myInfo.biWidth - 1) {
-                        ix = myInfo.biWidth - (i + x + 1 - myInfo.biWidth) - 1;
+                    if (i + x > Width - 1) {
+                        ix = Width - (i + x + 1 - Width) - 1;
                     }
                     if (j + y < 0) {
                         jy = -(j + y);
                     }
-                    if (j + y > myInfo.biHeight - 1) {
-                        jy = myInfo.biHeight - (j + y + 1 - myInfo.biHeight) - 1;
+                    if (j + y > Height - 1) {
+                        jy = Height - (j + y + 1 - Height) - 1;
                     }
 
                     int kernelIndex = (x + radius) * kernelSide + (y + radius);
-                    int newBufferIndex = bytesPerPixel * (ix * myInfo.biHeight + jy) + ix * newPadding;
+                    int newBufferIndex = bytesPerPixel * (ix * Height + jy) + ix * newPadding;
 
-                    if (newBufferIndex >= 0 && newBufferIndex < myInfo.biWidth * newStride) {
+                    if (newBufferIndex >= 0 && newBufferIndex < Width * newStride) {
 
-                        byte1 += kernel[kernelIndex] * newBuffer[newBufferIndex];               // taking into account 3 bytes per pixel
+                        byte1 += kernel[kernelIndex] * newBuffer[newBufferIndex];                // taking into account 3 bytes per pixel
                         byte2 += kernel[kernelIndex] * newBuffer[newBufferIndex + 1];
                         byte3 += kernel[kernelIndex] * newBuffer[newBufferIndex + 2];
                     }
                 }
             }
-            newBufferGauss[bytesPerPixel * (i * myInfo.biHeight + j) + i * newPadding] = (unsigned char)byte1;      // taking into account 3 bytes per pixel
-            newBufferGauss[bytesPerPixel * (i * myInfo.biHeight + j) + i * newPadding + 1] = (unsigned char)byte2;
-            newBufferGauss[bytesPerPixel * (i * myInfo.biHeight + j) + i * newPadding + 2] = (unsigned char)byte3;
+            newBufferGauss[bytesPerPixel * (i * Height + j) + i * newPadding] = (unsigned char)byte1;      // taking into account 3 bytes per pixel
+            newBufferGauss[bytesPerPixel * (i * Height + j) + i * newPadding + 1] = (unsigned char)byte2;
+            newBufferGauss[bytesPerPixel * (i * Height + j) + i * newPadding + 2] = (unsigned char)byte3;
         }
     }
 
-    myNewPicture3.write(reinterpret_cast<char*> (newBufferGauss), newStride * myInfo.biWidth);
-    myNewPicture3.close();
+    NewPicture3.write(reinterpret_cast<char*> (newBufferGauss), newBufferSize);
+    NewPicture3.close();
 
     delete[] newBuffer;       // deleting buffers
     delete[] newBufferGauss;

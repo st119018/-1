@@ -1,12 +1,12 @@
 #pragma once
 #ifndef MAIN_H_INCLUDED
 #define MAIN_H_INCLUDED
-typedef int FXPT2DOT30; // теперь int и FXPT2DOT30  — синонимы
+#pragma pack(push, 1)
 
-typedef struct {        // называем такую структуру CIEXYZ
-    FXPT2DOT30 ciexyzX;
-    FXPT2DOT30 ciexyzY;
-    FXPT2DOT30 ciexyzZ;
+typedef struct {
+    int     ciexyzX;
+    int     ciexyzY;
+    int     ciexyzZ;
 } CIEXYZ;
 
 typedef struct {
@@ -14,27 +14,31 @@ typedef struct {
     CIEXYZ  ciexyzGreen;
     CIEXYZ  ciexyzBlue;
 } CIEXYZTRIPLE;
+
 typedef struct {
-    unsigned short  bfType; //сигнатура формата файла (формат файла), должно быть BM = 0x4d42
-    unsigned int   bfSize; //размер файла в байтах
-    unsigned short    bfReserved1; //2 байта зарезервированы и должны быть установлены на 0
-    unsigned short    bfReserved2; //см. bfReserved1
-    unsigned int   bfOffBits; //смещение от начала до растровых данных
+    short           bfType;           //сигнатура формата файла (формат файла), должно быть 0x4d42
+    int             bfSize;           //размер файла в байтах
+    short           bfReserved1;      //2 байта зарезервированы и должны быть установлены на 0
+    short           bfReserved2;      //см. bfReserved1
+    int             bfOffBits;        //смещение от начала до растровых данных в байтах
 } BITMAPFILEHEADER;
 
 typedef struct
 {
-    unsigned int    biSize; //размер данной структуры в байтах, указывающий также на на версию структуры
-    int             biWidth; //ширина растра в пикселях. указывается целым числом со знаком. ноль и отрицательные не документированы
-    int             biHeight; //целое число со знаком, содержащее 2 параметра: высота растра в пикселях (абсолютное значение числа) и порядок следования строк в двумерных массивах (знак числа). нулевое значение не документировано.
-    unsigned short  biPlanes; //2 байта, указывающие количество цветовых плоскостей для целевого устройста, всегда равное 1
-    unsigned short  biBitCount; //количество бит на пиксель, равно 0 (пиксели хранятся в формате JPEG или PNG), 1, 4, 8, 16, 24, 32. У нас 24
-    unsigned int    biCompression; //указывает на способ хранения пикселей. BI_RGB | BI_RLE8 | BI_RLE4 |BI_BITFIELDS | BI_JPEG | BI_PNG. реально используется только BI_RGB. Указывает тип сжатия изображения, BI_RGB означает отсутствие сжатия (это поле равно 0)
-    unsigned int    biSizeImage; //указывает размер растровых данных; при использовании BI_RGB его можно установить равным 0 (т.е. если хранение осуществляется двумерным массивом)
-    int             biXPelsPerMeter; //указывает горизонтальное разрешение, единица измерения - пиксель/метр, целое число со знаком
-    int             biYPelsPerMeter; //указывает вертикальное разрешение, единица измерения - пиксель/метр, целое число со знаком
-    unsigned int    biClrUsed; //количество используемых цветов (если есть таблица цветов). 0 вроде означает использовать все. Вроде для 24 RGBTRIPPLE
-    unsigned int    biClrImportant; //количество важных цветов. Если 0, то все цвета считаются важными. Дальше может идти цветовая палитра
+    unsigned int    biSize;            //размер структуры в байтах
+    int             biWidth;           //ширина растра в пикселях. указывается целым числом со знаком. ноль и отрицательные не документированы
+    int             biHeight;          //целое число со знаком, содержащее 2 параметра: высота растра в пикселях (абсолютное значение числа) и порядок следования строк в двумерных массивах (знак числа); нулевое значение не документировано
+    unsigned short  biPlanes;          //2 байта, указывающие количество цветовых плоскостей для целевого устройста, всегда равное 1
+    unsigned short  biBitCount;        //количество бит на пиксель
+    unsigned int    biCompression;     //указывает на способ хранения пикселей; обычно используется BI_RGB; указывает тип сжатия изображения, BI_RGB означает отсутствие сжатия (это поле равно 0)
+    unsigned int    biSizeImage;       //указывает размер растровых данных; при использовании BI_RGB его можно установить равным 0
+    int             biXPelsPerMeter;   //указывает горизонтальное разрешение, целое число со знаком
+    int             biYPelsPerMeter;   //указывает вертикальное разрешение, целое число со знаком
+    unsigned int    biClrUsed;         //количество используемых цветов (0 - используется максимальное число)
+    unsigned int    biClrImportant;    //количество важных цветов; eсли 0, то все цвета считаются важными
+} BITMAPINFOHEADER;
+
+typedef struct {
     unsigned int    biRedMask;
     unsigned int    biGreenMask;
     unsigned int    biBlueMask;
@@ -44,11 +48,15 @@ typedef struct
     unsigned int    biGammaRed;
     unsigned int    biGammaGreen;
     unsigned int    biGammaBlue;
+} PALETTE1;
+
+typedef struct {
     unsigned int    biIntent;
     unsigned int    biProfileData;
     unsigned int    biProfileSize;
     unsigned int    biReserved;
-} BITMAPINFOHEADER;
+} PALETTE2;
 
-#endif // MAIN_H_INCLUDEDs
+#pragma pack(pop)
+#endif // MAIN_H_INCLUDED
 #pragma once
