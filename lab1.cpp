@@ -1,6 +1,8 @@
-﻿#include <iostream>
+﻿#include "Header.h"
+
+#include <cmath>
+#include <iostream>
 #include <fstream>
-#include "Header.h"
 
 int main() {
     setlocale(LC_CTYPE, "rus");
